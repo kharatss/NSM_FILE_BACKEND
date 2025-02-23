@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true, // Enable decorators
+    "emitDecoratorMetadata": true,  // Emit metadata for decorators
+    "target": "ES2022",             // Use a modern target
+    "module": "CommonJS",           // Use CommonJS or ES modules
+    "esModuleInterop": true,        // Enable ES module interop
+    "strict": true  ,                // Enable strict type checking
+    "strictPropertyInitialization": false, // Disable strict property initialization
+    "outDir": "./dist", // Output compiled files to the "dist" folder
+    "rootDir": "./src"  // Source files are in the "src" folder
+  },
+  "include": ["src/**/*"], // Include all files in the "src" folder
+  "exclude": ["node_modules"]
+}
