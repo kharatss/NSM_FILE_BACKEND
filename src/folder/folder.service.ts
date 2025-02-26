@@ -1,16 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Folder } from './entities/folder.entity';
-interface TransformedFolder {
-  id: number;
-  name: string;
-  description:string;
-  createdAt: Date;
-  updatedAt: Date;
-  children: any[]; // Children can be folders or files
-  type:'file'|'folder'
-}
 
 @Injectable()
 export class FolderService {
@@ -33,20 +24,7 @@ export class FolderService {
     return await this.folderRepository.save(folder);
   }
 
-  // async getFoldersPaginated(parentFolderId?: number, page = 1, limit = 10) {
-  //   const query = this.folderRepository.createQueryBuilder('folder')
-  //     .leftJoinAndSelect('folder.subFolders', 'subFolders')
-  //     .leftJoinAndSelect('folder.files', 'files');
 
-  //   if (parentFolderId) query.where('folder.parentFolderId = :parentFolderId', { parentFolderId });
-  //   query.addSelect(['files.created_at', 'files.updated_at']);
-  //   const [folders, total] = await query
-  //     .skip((page - 1) * limit)
-  //     .take(limit)
-  //     .getManyAndCount();
-
-  //   return { folders, total };
-  // }
   async getFoldersPaginated(parentFolderId?: number, page = 1, limit = 10) {
     const query = this.folderRepository.createQueryBuilder('folder')
       .leftJoinAndSelect('folder.subFolders', 'subFolders')
@@ -61,54 +39,72 @@ export class FolderService {
       .take(limit)
       .getManyAndCount();
   
-    // Transform the folders into a nested structure
-    const transformedFolders = this.transformFolders(folders);
   
-    return { folders: transformedFolders, total };
+    return { folders: folders, total };
   }
   
-  // Helper function to transform folders into a nested structure
-  private transformFolders(folders: Folder[]): TransformedFolder[] {
-    const folderMap: Record<number, TransformedFolder> = {};
+ 
+
   
-    // Step 1: Create a map of all folders
-    folders.forEach((folder) => {
-      folderMap[folder.id] = {
-        id: folder.id,
-        name: folder.name,
-        description:folder.description,
-        createdAt: folder.createdAt,
-        updatedAt: folder.updatedAt,
-        type:'folder',
-        children: [],
-      };
+  async updateFolder(id: number, updateFolderDto: {name:string}): Promise<void> {
+    const folder = await this.folderRepository.findOne({ where: { id } });
+
+    if (!folder) {
+      throw new NotFoundException(`Folder with ID ${id} not found`);
+    }
+
+    // Update the folder with the new data
+    await this.folderRepository.update(id, updateFolderDto);
+  }
+
+
+
+  async deleteFolder(id: number): Promise<void> {
+    const folder = await this.folderRepository.findOne({
+      where: { id },
+      relations: ['subFolders'], // Load subfolders
     });
-  
-    // Step 2: Build the nested structure
-    const rootFolders: TransformedFolder[] = [];
-  
-    folders.forEach((folder) => {
-      const transformedFolder = folderMap[folder.id];
-  
-      // Add subFolders as children
-      folder.subFolders.forEach((subFolder) => {
-        const transformedSubFolder = folderMap[subFolder.id];
-        if (transformedSubFolder) {
-          transformedFolder.children.push(transformedSubFolder);
-        }
-      });
-  
-      // Add files as children
-      folder.files.forEach((file) => {
-        transformedFolder.children.push(file);
-      });
-  
-      // If the folder has no parent, it's a root folder
-      if (!folders.some((f) => f.subFolders.some((sf) => sf.id === folder.id))) {
-        rootFolders.push(transformedFolder);
+
+    if (!folder) {
+      throw new NotFoundException(`Folder with ID ${id} not found`);
+    }
+
+    // Recursively delete subfolders
+    if (folder.subFolders && folder.subFolders.length > 0) {
+      for (const subFolder of folder.subFolders) {
+        await this.deleteFolder(subFolder.id); // Recursive call
       }
-    });
-  
-    return rootFolders;
+    }
+
+    // Delete the folder itself
+    await this.folderRepository.delete(id);
   }
-}
+
+    async findFolders(filters: {
+      name?: string;
+      description?: string;
+      createdDate?: string;
+    }): Promise<Folder[]> {
+      const queryBuilder = this.folderRepository.createQueryBuilder('folder');
+  
+      if (filters.name) {
+        queryBuilder.andWhere('folder.name LIKE :name', { name: `%${filters.name}%` });
+      }
+  
+      if (filters.description) {
+        queryBuilder.andWhere('folder.description LIKE :description', { description: `%${filters.description}%` });
+      }
+  
+      if (filters.createdDate) {
+        const parsedDate = new Date(filters.createdDate);
+        if (!isNaN(parsedDate.getTime())) {
+          queryBuilder.andWhere('folder.createdAt >= :createdDate', { createdDate: parsedDate });
+        }
+      }
+  
+      return queryBuilder.getMany();
+    }
+  }
+
+
+

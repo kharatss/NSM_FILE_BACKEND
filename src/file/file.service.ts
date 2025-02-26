@@ -15,27 +15,20 @@ export class FileService {
     private readonly folderRepository: Repository<Folder>,
   ) {}
 
-  // async uploadFile(name: string, fileType: string, filePath: string, folderId: number): Promise<File> {
-  //   const folder = await this.folderRepository.findOne({ where: { id: folderId } });
-  //   if (!folder) throw new Error('Folder not found');
-
-  //   const file = new File();
-  //   file.name = name;
-  //   file.fileType = fileType;
-  //   file.filePath = filePath;
-  //   file.folder = folder;
-
-  //   return await this.fileRepository.save(file);
-  // }
-
   private uploadDir = path.join(__dirname, '../../uploads');
 
-  async uploadFile(file: Express.Multer.File, folderId: number,description:string) {
+  async uploadFile(
+    file: Express.Multer.File,
+    folderId: number,
+    description: string,
+  ) {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
 
-    const folder = await this.folderRepository.findOne({ where: { id: folderId } });
+    const folder = await this.folderRepository.findOne({
+      where: { id: folderId },
+    });
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }

@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Body, Query } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Delete, HttpCode, Param, NotFoundException, HttpStatus, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { FolderService } from './folder.service';
+import { Folder } from './entities/folder.entity';
 
 @ApiTags('Folders') // Groups APIs under "Folders" in Swagger UI
 @Controller('folders')
@@ -38,4 +39,60 @@ export class FolderController {
   ) {
     return await this.folderService.getFoldersPaginated(parentFolderId, Number(page), Number(limit));
   }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a folder by ID' })
+  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Folder deleted successfully' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Folder not found' })
+  async deleteFolder(@Param('id') id: number): Promise<void> {
+    try {
+      await this.folderService.deleteFolder(id);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new NotFoundException(error.message);
+      }
+      throw error;
+    }
+  }
+
+  
+ 
+  
+    @Put(':id')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Update a folder by ID' })
+    @ApiResponse({ status: HttpStatus.OK, description: 'Folder updated successfully' })
+    @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Folder not found' })
+    @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid input' })
+    async updateFolder(
+      @Param('id') id: number,
+      @Body() updateFolderDto: { name: string; description:string},
+    ): Promise<void> {
+      try {
+        await this.folderService.updateFolder(id, updateFolderDto);
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          throw new NotFoundException(error.message);
+        }
+        throw error;
+      }
+    }
+
+  
+
+  // Filtered GET request to fetch folders with specific filters
+  @Get('filtered')
+  @ApiOperation({ summary: 'Get filtered folders' })
+  @ApiResponse({ status: 200, description: 'Successfully fetched filtered folders', type: [Folder] })
+  async getFilteredFolders(
+    @Query('name') name?: string,
+    @Query('description') description?: string,
+    @Query('createdDate') createdDate?: string,
+  ): Promise<Folder[]> {
+    return this.folderService.findFolders({ name, description, createdDate });
+  }
 }
+
+  
+
